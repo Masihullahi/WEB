@@ -1,0 +1,77 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATELIER — Store</title>
+<style>
+:root{--bg:#f4f4f2;--ink:#111;--mute:#8a8a86}
+*{box-sizing:border-box;margin:0}body{background:var(--bg);color:var(--ink);font:13px/1.4 "Helvetica Neue",Inter,Arial,sans-serif;height:100vh;overflow:hidden}
+nav{position:fixed;inset:0 0 auto;display:flex;justify-content:space-between;align-items:center;padding:22px 36px;z-index:5;letter-spacing:.14em;text-transform:uppercase;font-size:11px}
+nav b{font-size:15px;letter-spacing:.3em}nav a,nav button{color:inherit;background:none;border:0;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;margin-left:26px;text-decoration:none}
+.cats{position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:5}.cats button{margin:0 14px;color:var(--mute)}.cats .on{color:var(--ink)}
+#rail{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;cursor:grab}#rail::-webkit-scrollbar{display:none}
+#track{display:flex;gap:clamp(70px,9vw,150px);padding:0 40vw 0 22vw;margin-top:calc(50vh - 130px);min-width:max-content;position:relative}
+#track:before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:#111}
+.it{position:relative;padding-top:60px;transform-origin:50% 0;animation:sway 5s ease-in-out infinite;cursor:pointer}.it:nth-child(2n){animation-delay:-1.7s}.it:nth-child(3n){animation-delay:-3.1s}
+.it:before{content:"";position:absolute;top:0;left:50%;height:62px;width:1px;background:#111}
+.it img{width:clamp(110px,13vw,170px);display:block;transition:transform .5s cubic-bezier(.2,.7,.2,1);pointer-events:none;-webkit-user-drag:none}
+.it:hover{animation-play-state:paused}.it:hover img{transform:scale(1.12)}
+.it small{display:block;text-align:center;margin-top:10px;opacity:0;transition:.3s;letter-spacing:.1em;text-transform:uppercase;font-size:10px}.it:hover small{opacity:1}
+@keyframes sway{0%,100%{transform:rotate(-1.4deg)}50%{transform:rotate(1.4deg)}}
+.hint{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);color:var(--mute);font-size:10px;letter-spacing:.2em;text-transform:uppercase}
+#pv{position:fixed;inset:0;background:var(--bg);z-index:10;display:none;opacity:0;transition:opacity .4s}#pv.show{display:block}#pv.in{opacity:1}
+#pv h1{position:absolute;top:96px;left:5vw;font-size:clamp(26px,4vw,54px);line-height:1;letter-spacing:-.02em;font-weight:800;text-transform:uppercase;max-width:40vw}
+#pv h1 span{display:block;font-size:11px;font-weight:400;letter-spacing:.2em;color:var(--mute);margin-top:12px}
+#pimg{position:absolute;left:50%;top:50%;width:min(46vw,52vh);transform:translate(-50%,-50%) scale(.85);transition:transform .7s cubic-bezier(.2,.7,.2,1)}#pv.in #pimg{transform:translate(-50%,-50%) scale(1)}
+aside{position:absolute;right:5vw;top:50%;transform:translateY(-50%);width:230px}aside .pr{font-size:18px;margin:6px 0 16px}
+.sz{display:flex;gap:6px;margin-bottom:14px}.sz button{flex:1;padding:8px 0;border:1px solid #ccc;background:none;cursor:pointer;font:inherit}.sz .on{background:#111;color:#fff;border-color:#111}
+.btn{width:100%;padding:13px;background:#111;color:#fff;border:0;border-radius:3px;font:inherit;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}.btn:hover{background:#333}
+.x{position:absolute;top:24px;right:36px;background:none;border:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+#cart{position:fixed;top:0;right:0;bottom:0;width:min(380px,100vw);background:#fff;z-index:20;transform:translateX(100%);transition:.4s;padding:28px;overflow:auto;box-shadow:-20px 0 60px #0001}#cart.open{transform:none}
+#cart .ln{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eee}#cart .ln img{width:50px}#cart .ln div{flex:1}
+#cart input,#cart textarea{width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;font:inherit}
+@media(max-width:760px){aside{right:auto;left:5vw;top:auto;bottom:28px;transform:none;width:90vw}#pv h1{max-width:80vw}#pimg{top:42%;width:62vw}.cats{display:none}}
+</style></head><body>
+<nav><b>ATELIER</b><span><a href="admin.html">Merchant</a><button id="cb">Cart (<span id="cn">0</span>)</button></span></nav>
+<div class="cats" id="cats"></div>
+<div id="rail"><div id="track"></div></div><div class="hint">Drag or scroll →</div>
+<div id="pv"><button class="x" id="back">Close ✕</button><h1 id="pn"></h1><img id="pimg" alt="">
+<aside><div id="pc" style="color:var(--mute);letter-spacing:.14em;text-transform:uppercase;font-size:10px"></div><div class="pr" id="pp"></div>
+<div class="sz" id="sz"></div><button class="btn" id="add">Add to cart</button></aside></div>
+<div id="cart"><button class="x" style="right:24px" id="cx">Close ✕</button><h3 style="letter-spacing:.2em;text-transform:uppercase;font-size:12px;margin-bottom:16px">Your cart</h3>
+<div id="lines"></div><p id="tot" style="margin:16px 0;font-weight:700"></p>
+<input id="cn1" placeholder="Full name"><input id="cp" placeholder="Phone"><textarea id="ca" rows="3" placeholder="Delivery address"></textarea>
+<button class="btn" id="co">Place order</button><p id="msg" style="margin-top:10px;color:#2e8b3d"></p></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script><script src="shared.js"></script>
+<script>
+let P=[],cat='All',cur=null,size='M',cart=demoGet('cart')||[];
+const track=$('#track');
+function render(){const cs=['All',...new Set(P.map(p=>p.category))];
+ $('#cats').innerHTML=cs.map(c=>`<button class="${c==cat?'on':''}" data-c="${c}">${c}</button>`).join('');
+ track.innerHTML=P.filter(p=>cat=='All'||p.category==cat).map(p=>`<div class="it" data-id="${p.id}"><img src="${p.image_url}" alt=""><small>${p.name} — ${money(p.price)}</small></div>`).join('');}
+$('#cats').onclick=e=>{if(e.target.dataset.c){cat=e.target.dataset.c;render();$('#rail').scrollTo(0,0)}};
+// drag + wheel horizontal scroll
+const rail=$('#rail');let dn=0,sx=0,sl=0,moved=0;
+rail.onwheel=e=>{e.preventDefault();rail.scrollLeft+=e.deltaY+e.deltaX};
+rail.onpointerdown=e=>{dn=1;moved=0;sx=e.clientX;sl=rail.scrollLeft};
+addEventListener('pointermove',e=>{if(dn){const d=e.clientX-sx;if(Math.abs(d)>4)moved=1;rail.scrollLeft=sl-d}});
+addEventListener('pointerup',()=>dn=0);
+track.onclick=e=>{const it=e.target.closest('.it');if(it&&!moved)open(+it.dataset.id)};
+function open(id){cur=P.find(p=>p.id==id);$('#pn').innerHTML=cur.name+`<span>${cur.category}</span>`;$('#pimg').src=cur.image_url;
+ $('#pc').textContent=cur.stock>0?'In stock':'Sold out';$('#pp').textContent=money(cur.price);
+ $('#sz').innerHTML=['S','M','L','XL'].map(s=>`<button class="${s==size?'on':''}">${s}</button>`).join('');
+ $('#pv').classList.add('show');requestAnimationFrame(()=>requestAnimationFrame(()=>$('#pv').classList.add('in')));}
+$('#sz').onclick=e=>{if(e.target.tagName=='BUTTON'){size=e.target.textContent;[...$('#sz').children].forEach(b=>b.classList.toggle('on',b==e.target))}};
+$('#back').onclick=()=>{$('#pv').classList.remove('in');setTimeout(()=>$('#pv').classList.remove('show'),400)};
+$('#add').onclick=()=>{if(cur.stock<1)return;cart.push({id:cur.id,name:cur.name,price:cur.price,img:cur.image_url,size});saveCart();$('#back').click();$('#cart').classList.add('open')};
+function saveCart(){demoSet('cart',cart);$('#cn').textContent=cart.length;
+ $('#lines').innerHTML=cart.map((c,i)=>`<div class="ln"><img src="${c.img}"><div>${c.name}<br><small>Size ${c.size} · ${money(c.price)}</small></div><button data-i="${i}" style="border:0;background:none;cursor:pointer">✕</button></div>`).join('')||'<p style="color:#8a8a86">Cart is empty.</p>';
+ $('#tot').textContent='Total: '+money(cart.reduce((s,c)=>s+ +c.price,0))}
+$('#lines').onclick=e=>{if(e.target.dataset.i){cart.splice(e.target.dataset.i,1);saveCart()}};
+$('#cb').onclick=()=>$('#cart').classList.add('open');$('#cx').onclick=()=>$('#cart').classList.remove('open');
+$('#co').onclick=async()=>{const n=$('#cn1').value.trim(),p=$('#cp').value.trim(),a=$('#ca').value.trim();
+ if(!cart.length||!n||!p||!a){$('#msg').style.color='#c00';return $('#msg').textContent='Fill all fields & add items.'}
+ const r=await db.addOrder({customer:n,phone:p,address:a,items:cart.map(c=>({id:c.id,name:c.name,size:c.size,price:c.price})),total:cart.reduce((s,c)=>s+ +c.price,0)});
+ if(r&&r.error){$('#msg').style.color='#c00';return $('#msg').textContent=r.error.message}
+ cart=[];saveCart();$('#msg').style.color='#2e8b3d';$('#msg').textContent='Order placed. Thank you!'};
+addEventListener('keydown',e=>e.key=='Escape'&&$('#back').click());
+db.products().then(l=>{P=l;render();saveCart()});
+</script></body></html>

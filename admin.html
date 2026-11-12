@@ -1,0 +1,50 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATELIER — Merchant</title>
+<style>
+*{box-sizing:border-box;margin:0}body{background:#f4f4f2;color:#111;font:13px/1.45 "Helvetica Neue",Inter,Arial,sans-serif;padding:28px 36px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;letter-spacing:.14em;text-transform:uppercase;font-size:11px}header b{font-size:15px;letter-spacing:.3em}
+a,button{font:inherit;color:inherit}.tabs button{background:none;border:0;border-bottom:1px solid transparent;padding:6px 0;margin-right:22px;cursor:pointer;letter-spacing:.12em;text-transform:uppercase;font-size:11px;color:#8a8a86}.tabs .on{color:#111;border-color:#111}
+.card{background:#fff;padding:22px;margin:18px 0}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px 8px;border-bottom:1px solid #eee;vertical-align:middle}th{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8a8a86;font-weight:400}
+td img{width:44px;height:44px;object-fit:contain;background:#f4f4f2}
+input,select{padding:10px;border:1px solid #ddd;font:inherit;background:#fff;margin:0 8px 8px 0}.btn{background:#111;color:#fff;border:0;padding:11px 20px;border-radius:3px;cursor:pointer;letter-spacing:.1em;text-transform:uppercase;font-size:11px}.ghost{background:none;border:1px solid #ccc;color:#111}
+.tag{padding:3px 8px;background:#eee;border-radius:10px;font-size:11px}.banner{background:#111;color:#fff;padding:8px 14px;margin-bottom:18px;font-size:11px;letter-spacing:.08em}
+#login{max-width:340px;margin:12vh auto}.stat{display:inline-block;margin-right:40px}.stat b{display:block;font-size:26px}
+</style></head><body>
+<header><b>ATELIER · MERCHANT</b><span><a href="index.html">← Store</a> <button class="btn ghost" id="out" style="margin-left:18px;display:none">Log out</button></span></header>
+<div id="login" class="card" style="display:none"><h3 style="margin-bottom:14px;letter-spacing:.2em;font-size:12px">SIGN IN</h3>
+<input id="em" placeholder="Email" style="width:100%"><input id="pw" type="password" placeholder="Password" style="width:100%"><button class="btn" id="go" style="width:100%">Login</button><p id="le" style="color:#c00;margin-top:8px"></p></div>
+<main id="app" style="display:none"><div id="demo" class="banner" style="display:none">DEMO MODE — data is saved only in this browser. Add Supabase keys in config.js to go live.</div>
+<div id="stats"></div><div class="tabs card" style="padding:14px 22px"><button class="on" data-t="p">Products</button><button data-t="o">Orders</button></div>
+<section id="tp"><div class="card"><h4 id="ft" style="margin-bottom:12px;letter-spacing:.14em;font-size:11px">NEW PRODUCT</h4>
+<input id="n" placeholder="Name"><input id="c" placeholder="Category" list="cl"><datalist id="cl"><option>Hoodies<option>Bags<option>Shoes</datalist><input id="pr" type="number" placeholder="Price" style="width:100px"><input id="s" type="number" placeholder="Stock" style="width:90px">
+<input id="f" type="file" accept="image/*"><label><input id="a" type="checkbox" checked> Visible</label><br><button class="btn" id="save">Save product</button> <button class="btn ghost" id="clr">Clear</button> <span id="pm"></span></div>
+<div class="card"><table id="pt"></table></div></section>
+<section id="to" style="display:none"><div class="card"><table id="ot"></table></div></section></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script><script src="shared.js"></script>
+<script>
+let E=null,P=[];
+async function boot(){
+ if(live){const {data}=await sb.auth.getSession();if(!data.session){$('#login').style.display='block';$('#app').style.display='none';return}$('#out').style.display='inline-block'}
+ else $('#demo').style.display='block';
+ $('#login').style.display='none';$('#app').style.display='block';load()}
+$('#go').onclick=async()=>{const r=await sb.auth.signInWithPassword({email:$('#em').value,password:$('#pw').value});r.error?$('#le').textContent=r.error.message:boot()};
+$('#out').onclick=async()=>{await sb.auth.signOut();location.reload()};
+document.querySelector('.tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b==e.target));$('#tp').style.display=t=='p'?'':'none';$('#to').style.display=t=='o'?'':'none'};
+async function load(){P=await db.products(true);const O=await db.orders();
+ $('#stats').innerHTML=`<div class="card"><span class="stat"><b>${P.length}</b>Products</span><span class="stat"><b>${O.length}</b>Orders</span><span class="stat"><b>${money(O.reduce((s,o)=>s+ +o.total,0))}</b>Revenue</span></div>`;
+ $('#pt').innerHTML='<tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>'+P.map(p=>`<tr><td><img src="${p.image_url||''}"></td><td>${p.name}</td><td>${p.category}</td><td>${money(p.price)}</td><td>${p.stock}</td><td><span class="tag">${p.active?'Live':'Hidden'}</span></td><td><button class="btn ghost" data-e="${p.id}">Edit</button> <button class="btn ghost" data-d="${p.id}">Delete</button></td></tr>`).join('');
+ $('#ot').innerHTML='<tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr>'+(O.map(o=>`<tr><td>${String(o.id).slice(-5)}</td><td>${o.customer}<br><small>${o.phone} · ${o.address}</small></td><td>${(o.items||[]).map(i=>i.name+' ('+i.size+')').join(', ')}</td><td>${money(o.total)}</td><td><select data-o="${o.id}">${['new','paid','shipped','done','cancelled'].map(s=>`<option ${s==o.status?'selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('')||'<tr><td colspan=5>No orders yet.</td></tr>')}
+$('#pt').onclick=async e=>{const d=e.target.dataset;if(d.e){E=P.find(p=>p.id==d.e);$('#n').value=E.name;$('#c').value=E.category;$('#pr').value=E.price;$('#s').value=E.stock;$('#a').checked=E.active;$('#ft').textContent='EDIT PRODUCT';scrollTo(0,0)}
+ if(d.d&&confirm('Delete this product?')){await db.delProduct(d.d);load()}};
+$('#ot').onchange=async e=>{if(e.target.dataset.o){await db.setStatus(e.target.dataset.o,e.target.value)}};
+$('#clr').onclick=()=>{E=null;['n','c','pr','s','f'].forEach(i=>$('#'+i).value='');$('#ft').textContent='NEW PRODUCT'};
+$('#save').onclick=async()=>{const p={name:$('#n').value.trim(),category:$('#c').value.trim()||'General',price:+$('#pr').value,stock:+$('#s').value||0,active:$('#a').checked};
+ if(!p.name||!p.price)return $('#pm').textContent='Name & price required';
+ const file=$('#f').files[0];if(E){p.id=E.id;p.image_url=E.image_url}
+ if(file){if(live){const path=Date.now()+'-'+file.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('products').upload(path,file);if(u.error)return $('#pm').textContent=u.error.message;p.image_url=sb.storage.from('products').getPublicUrl(path).data.publicUrl}
+  else p.image_url=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(file)})}
+ if(!p.image_url)p.image_url=art('hoodie','#999');
+ const r=await db.saveProduct(p);if(r&&r.error)return $('#pm').textContent=r.error.message;$('#clr').click();$('#pm').textContent='Saved ✓';load()};
+boot();
+</script></body></html>
