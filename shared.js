@@ -1,6 +1,11 @@
 const CFG = window.CONFIG || {};
-const live = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
-const sb = live ? supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+const U = (CFG.SUPABASE_URL || '').trim().replace(/\/+$/, ''), K = (CFG.SUPABASE_ANON_KEY || '').trim();
+let sb = null, live = false;
+const fail = m => addEventListener('DOMContentLoaded', () => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;top:64px;left:36px;right:36px;background:#fee;color:#900;padding:12px 16px;z-index:99;font:13px sans-serif;border:1px solid #c00'; d.textContent = m; document.body.appendChild(d); });
+if (U && K) {
+ if (!window.supabase) fail('Supabase library did not load (check internet / ad-blocker).');
+ else try { sb = supabase.createClient(U, K); live = true; } catch (e) { fail('config.js problem: ' + e.message + ' — SUPABASE_URL must look like https://xxxx.supabase.co'); }
+}
 const $ = (s, r = document) => r.querySelector(s);
 const money = n => '$' + Number(n).toFixed(0);
 const art = (k, c) => 'data:image/svg+xml;utf8,' + encodeURIComponent(

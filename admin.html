@@ -46,5 +46,5 @@ $('#save').onclick=async()=>{const p={name:$('#n').value.trim(),category:$('#c')
   else p.image_url=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(file)})}
  if(!p.image_url)p.image_url=art('hoodie','#999');
  const r=await db.saveProduct(p);if(r&&r.error)return $('#pm').textContent=r.error.message;$('#clr').click();$('#pm').textContent='Saved ✓';load()};
-boot();
+boot().catch(e=>{$('#login').style.display='block';$('#le').textContent='Error: '+e.message});
 </script></body></html>
