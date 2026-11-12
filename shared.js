@@ -18,7 +18,7 @@ const DEMO = [
  ['Heavy Hoodie','Hoodies',120,'hoodie','#9aa0a6'],['Forest Hoodie','Hoodies',120,'hoodie','#2f5d3a'],
  ['Crescent Bag','Bags',210,'bag','#e8281b'],['Moss Bag','Bags',190,'bag','#2e8b3d'],['Cocoa Bag','Bags',190,'bag','#6b3f2a'],
  ['Runner One','Shoes',150,'shoe','#222'],['Court Low','Shoes',140,'shoe','#8aa4c8'],['Cloud Sneaker','Shoes',165,'shoe','#c9c9c9']
-].map((a, i) => ({ id: i + 1, name: a[0], category: a[1], price: a[2], image_url: art(a[3], a[4]), stock: 20, active: true }));
+].map((a, i) => ({ id: i + 1, name: a[0], category: a[1], price: a[2], image_url: art(a[3], a[4]), sizes: a[3] == 'shoe' ? { '40': 4, '41': 6, '42': 6, '43': 4 } : { S: 5, M: 8, L: 6, XL: 3 }, stock: 20, active: true }));
 const demoGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
 const demoSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 const db = {
@@ -37,8 +37,8 @@ const db = {
  },
  async orders() { return live ? (await sb.from('orders').select('*').order('id', { ascending: false })).data || [] : demoGet('orders') || []; },
  async addOrder(o) {
-  if (!live) { const l = demoGet('orders') || []; l.unshift({ ...o, id: Date.now(), status: 'new', created_at: new Date().toISOString() }); return demoSet('orders', l); }
-  return sb.from('orders').insert(o);
+  if (!live) { const ps = demoGet('products') || DEMO; for (const it of o.items) { const p = ps.find(x => x.id == it.id); if (p && p.sizes && p.sizes[it.size] > 0) { p.sizes[it.size]--; p.stock--; } } demoSet('products', ps); const l = demoGet('orders') || []; l.unshift({ ...o, id: Date.now(), status: 'new', created_at: new Date().toISOString() }); return demoSet('orders', l); }
+  return sb.rpc('place_order', { p_customer: o.customer, p_phone: o.phone, p_address: o.address, p_items: o.items });
  },
  async setStatus(id, status) {
   if (!live) { const l = demoGet('orders'); l.find(x => x.id == id).status = status; return demoSet('orders', l); }

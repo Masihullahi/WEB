@@ -16,7 +16,7 @@ input,select{padding:10px;border:1px solid #ddd;font:inherit;background:#fff;mar
 <main id="app" style="display:none"><div id="demo" class="banner" style="display:none">DEMO MODE — data is saved only in this browser. Add Supabase keys in config.js to go live.</div>
 <div id="stats"></div><div class="tabs card" style="padding:14px 22px"><button class="on" data-t="p">Products</button><button data-t="o">Orders</button></div>
 <section id="tp"><div class="card"><h4 id="ft" style="margin-bottom:12px;letter-spacing:.14em;font-size:11px">NEW PRODUCT</h4>
-<input id="n" placeholder="Name"><input id="c" placeholder="Category" list="cl"><datalist id="cl"><option>Hoodies<option>Bags<option>Shoes</datalist><input id="pr" type="number" placeholder="Price" style="width:100px"><input id="s" type="number" placeholder="Stock" style="width:90px">
+<input id="n" placeholder="Name"><input id="c" placeholder="Category" list="cl"><datalist id="cl"><option>Hoodies<option>Bags<option>Shoes</datalist><input id="pr" type="number" placeholder="Price" style="width:100px"><input id="sz" placeholder="Sizes: S,M,L,XL or 40,41,42" value="S,M,L,XL" style="width:240px"><div id="sq" style="margin:2px 0 10px"></div>
 <input id="f" type="file" accept="image/*"><label><input id="a" type="checkbox" checked> Visible</label><br><button class="btn" id="save">Save product</button> <button class="btn ghost" id="clr">Clear</button> <span id="pm"></span></div>
 <div class="card"><table id="pt"></table></div></section>
 <section id="to" style="display:none"><div class="card"><table id="ot"></table></div></section></main>
@@ -33,18 +33,22 @@ $('#out').onclick=async()=>{await sb.auth.signOut();location.reload()};
 document.querySelector('.tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;[...e.currentTarget.children].forEach(b=>b.classList.toggle('on',b==e.target));$('#tp').style.display=t=='p'?'':'none';$('#to').style.display=t=='o'?'':'none'};
 async function load(){P=await db.products(true);const O=await db.orders();
  $('#stats').innerHTML=`<div class="card"><span class="stat"><b>${P.length}</b>Products</span><span class="stat"><b>${O.length}</b>Orders</span><span class="stat"><b>${money(O.reduce((s,o)=>s+ +o.total,0))}</b>Revenue</span></div>`;
- $('#pt').innerHTML='<tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>'+P.map(p=>`<tr><td><img src="${p.image_url||''}"></td><td>${p.name}</td><td>${p.category}</td><td>${money(p.price)}</td><td>${p.stock}</td><td><span class="tag">${p.active?'Live':'Hidden'}</span></td><td><button class="btn ghost" data-e="${p.id}">Edit</button> <button class="btn ghost" data-d="${p.id}">Delete</button></td></tr>`).join('');
+ $('#pt').innerHTML='<tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock by size</th><th>Status</th><th></th></tr>'+P.map(p=>`<tr><td><img src="${p.image_url||''}"></td><td>${p.name}</td><td>${p.category}</td><td>${money(p.price)}</td><td>${szTxt(p)}</td><td><span class="tag">${p.active?'Live':'Hidden'}</span></td><td><button class="btn ghost" data-e="${p.id}">Edit</button> <button class="btn ghost" data-d="${p.id}">Delete</button></td></tr>`).join('');
  $('#ot').innerHTML='<tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr>'+(O.map(o=>`<tr><td>${String(o.id).slice(-5)}</td><td>${o.customer}<br><small>${o.phone} · ${o.address}</small></td><td>${(o.items||[]).map(i=>i.name+' ('+i.size+')').join(', ')}</td><td>${money(o.total)}</td><td><select data-o="${o.id}">${['new','paid','shipped','done','cancelled'].map(s=>`<option ${s==o.status?'selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('')||'<tr><td colspan=5>No orders yet.</td></tr>')}
-$('#pt').onclick=async e=>{const d=e.target.dataset;if(d.e){E=P.find(p=>p.id==d.e);$('#n').value=E.name;$('#c').value=E.category;$('#pr').value=E.price;$('#s').value=E.stock;$('#a').checked=E.active;$('#ft').textContent='EDIT PRODUCT';scrollTo(0,0)}
+$('#pt').onclick=async e=>{const d=e.target.dataset;if(d.e){E=P.find(p=>p.id==d.e);$('#n').value=E.name;$('#c').value=E.category;$('#pr').value=E.price;$('#sz').value=Object.keys(E.sizes||{}).join(',');renderSq(E.sizes||{});$('#a').checked=E.active;$('#ft').textContent='EDIT PRODUCT';scrollTo(0,0)}
  if(d.d&&confirm('Delete this product?')){await db.delProduct(d.d);load()}};
 $('#ot').onchange=async e=>{if(e.target.dataset.o){await db.setStatus(e.target.dataset.o,e.target.value)}};
-$('#clr').onclick=()=>{E=null;['n','c','pr','s','f'].forEach(i=>$('#'+i).value='');$('#ft').textContent='NEW PRODUCT'};
-$('#save').onclick=async()=>{const p={name:$('#n').value.trim(),category:$('#c').value.trim()||'General',price:+$('#pr').value,stock:+$('#s').value||0,active:$('#a').checked};
- if(!p.name||!p.price)return $('#pm').textContent='Name & price required';
- const file=$('#f').files[0];if(E){p.id=E.id;p.image_url=E.image_url}
+$('#clr').onclick=()=>{E=null;['n','c','pr','f'].forEach(i=>$('#'+i).value='');$('#sz').value='S,M,L,XL';renderSq({});$('#ft').textContent='NEW PRODUCT'};
+$('#save').onclick=async()=>{const p={name:$('#n').value.trim(),category:$('#c').value.trim()||'General',price:+$('#pr').value,sizes:getSq(),stock:0,active:$('#a').checked};
+ if(!p.name||!p.price||!Object.keys(p.sizes).length)return $('#pm').textContent='Name, price & sizes required';
+ p.stock=Object.values(p.sizes).reduce((a,b)=>a+b,0);const file=$('#f').files[0];if(E){p.id=E.id;p.image_url=E.image_url}
  if(file){if(live){const path=Date.now()+'-'+file.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('products').upload(path,file);if(u.error)return $('#pm').textContent=u.error.message;p.image_url=sb.storage.from('products').getPublicUrl(path).data.publicUrl}
   else p.image_url=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(file)})}
  if(!p.image_url)p.image_url=art('hoodie','#999');
  const r=await db.saveProduct(p);if(r&&r.error)return $('#pm').textContent=r.error.message;$('#clr').click();$('#pm').textContent='Saved ✓';load()};
+const szTxt=p=>Object.entries(p.sizes||{}).map(([k,v])=>k+': '+v).join(' · ')||'—';
+function renderSq(cur){const ks=[...new Set($('#sz').value.split(',').map(s=>s.trim()).filter(Boolean))];$('#sq').innerHTML=ks.map(k=>`<label style="margin-right:14px;display:inline-block">${k} <input type="number" min="0" data-k="${k}" value="${(cur&&cur[k])??0}" style="width:64px;margin:0"></label>`).join('')}
+function getSq(){const o={};document.querySelectorAll('#sq input').forEach(i=>o[i.dataset.k]=Math.max(0,+i.value||0));return o}
+$('#sz').oninput=()=>renderSq(getSq());renderSq({S:10,M:10,L:10,XL:10});
 boot().catch(e=>{$('#login').style.display='block';$('#le').textContent='Error: '+e.message});
 </script></body></html>

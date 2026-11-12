@@ -56,12 +56,13 @@ addEventListener('pointermove',e=>{if(dn){const d=e.clientX-sx;if(Math.abs(d)>4)
 addEventListener('pointerup',()=>dn=0);
 track.onclick=e=>{const it=e.target.closest('.it');if(it&&!moved)open(+it.dataset.id)};
 function open(id){cur=P.find(p=>p.id==id);$('#pn').innerHTML=cur.name+`<span>${cur.category}</span>`;$('#pimg').src=cur.image_url;
- $('#pc').textContent=cur.stock>0?'In stock':'Sold out';$('#pp').textContent=money(cur.price);
- $('#sz').innerHTML=['S','M','L','XL'].map(s=>`<button class="${s==size?'on':''}">${s}</button>`).join('');
+ const S=sizesOf(cur),ks=Object.keys(S);size=ks.find(k=>S[k]>0)||ks[0];$('#pp').textContent=money(cur.price);drawSz();
  $('#pv').classList.add('show');requestAnimationFrame(()=>requestAnimationFrame(()=>$('#pv').classList.add('in')));}
-$('#sz').onclick=e=>{if(e.target.tagName=='BUTTON'){size=e.target.textContent;[...$('#sz').children].forEach(b=>b.classList.toggle('on',b==e.target))}};
+const sizesOf=p=>p.sizes&&Object.keys(p.sizes).length?p.sizes:{'ONE SIZE':p.stock};
+function drawSz(){const S=sizesOf(cur);$('#sz').innerHTML=Object.keys(S).map(k=>`<button data-s="${k}" ${S[k]<1?'disabled style="opacity:.35;text-decoration:line-through;cursor:not-allowed"':''} class="${k==size?'on':''}">${k}</button>`).join('');const n=S[size];$('#pc').textContent=n<1?'Sold out':n<=3?'Only '+n+' left':'In stock'}
+$('#sz').onclick=e=>{const b=e.target.closest('button');if(b&&!b.disabled){size=b.dataset.s;drawSz()}};
 $('#back').onclick=()=>{$('#pv').classList.remove('in');setTimeout(()=>$('#pv').classList.remove('show'),400)};
-$('#add').onclick=()=>{if(cur.stock<1)return;cart.push({id:cur.id,name:cur.name,price:cur.price,img:cur.image_url,size});saveCart();$('#back').click();$('#cart').classList.add('open')};
+$('#add').onclick=()=>{const S=sizesOf(cur),inCart=cart.filter(c=>c.id==cur.id&&c.size==size).length;if(!(S[size]>inCart)){$('#pc').textContent='No more stock in this size';return}cart.push({id:cur.id,name:cur.name,price:cur.price,img:cur.image_url,size});saveCart();$('#back').click();$('#cart').classList.add('open')};
 function saveCart(){demoSet('cart',cart);$('#cn').textContent=cart.length;
  $('#lines').innerHTML=cart.map((c,i)=>`<div class="ln"><img src="${c.img}"><div>${c.name}<br><small>Size ${c.size} · ${money(c.price)}</small></div><button data-i="${i}" style="border:0;background:none;cursor:pointer">✕</button></div>`).join('')||'<p style="color:#8a8a86">Cart is empty.</p>';
  $('#tot').textContent='Total: '+money(cart.reduce((s,c)=>s+ +c.price,0))}
@@ -71,7 +72,7 @@ $('#co').onclick=async()=>{const n=$('#cn1').value.trim(),p=$('#cp').value.trim(
  if(!cart.length||!n||!p||!a){$('#msg').style.color='#c00';return $('#msg').textContent='Fill all fields & add items.'}
  const r=await db.addOrder({customer:n,phone:p,address:a,items:cart.map(c=>({id:c.id,name:c.name,size:c.size,price:c.price})),total:cart.reduce((s,c)=>s+ +c.price,0)});
  if(r&&r.error){$('#msg').style.color='#c00';return $('#msg').textContent=r.error.message}
- cart=[];saveCart();$('#msg').style.color='#2e8b3d';$('#msg').textContent='Order placed. Thank you!'};
+ cart=[];saveCart();db.products().then(l=>{P=l;render()});$('#msg').style.color='#2e8b3d';$('#msg').textContent='Order placed. Thank you!'};
 addEventListener('keydown',e=>e.key=='Escape'&&$('#back').click());
 db.products().then(l=>{P=l;render();saveCart()});
 </script></body></html>
